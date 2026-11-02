@@ -5,6 +5,7 @@ Read `CLI.md` for command examples. Run `huawei help` for the implemented comman
 ## Executable and invocation
 
 - Local executable: `/home/emircyn/.local/bin/huawei` (symlink to `src/publish/huawei`). Portable repository-relative entry: `src/publish/huawei`.
+- Windows executable: `src/publish/windows/huawei.exe`; local tested copy: `C:\Users\Emirc\huawei-cli\huawei.exe`. Use Windows Python for recovery; see CLI.md. Both output streams use UTF-8. Windows files inherit directory ACLs; Linux 0600 does not apply.
 - Syntax: command words first, then `--option value`. Options before command words and `--key=value` are unsupported. `--show-secrets` is the only valueless flag. Boolean values are `true`/`false`.
 - Each invocation is a separate process/session. Pass `--host` and `--user` consistently; defaults are `192.168.1.1` and `admin`. Do not run concurrent operations on the same router: firmware may allow only one web session.
 - GUI default password is used when no password file or nonblank environment value is supplied. Priority: password file > environment > GUI default. An explicitly empty password file is an error.

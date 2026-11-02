@@ -2,7 +2,7 @@
 
 Agent başlangıç rehberi: [AGENTS.md](AGENTS.md). Kısa giriş: [llm.txt](llm.txt).
 
-v2.0.1 kaynak kodunu kullanan Linux x64 CLI. Çalıştırılabilir dosya: `src/publish/huawei`.
+v2.0.1 kaynak kodunu kullanan Linux ve Windows x64 CLI. Çalıştırılabilir dosyalar: Linux `src/publish/huawei`, Windows `src/publish/windows/huawei.exe`.
 GNU GPL v2 lisansı ve upstream kaynakları bu depoda korunmuştur.
 
 ## Kullanım
@@ -26,6 +26,27 @@ huawei restore profile --file profile.json
 `wifi set --psk-env WIFI_KEY` parolayı belirtilen ortam değişkeninden okur. `wifi split` iki bandı ayırır. `alg set --file alg.json` örneğin `{"SIP":false}` alır; desteklenen anahtarları `alg get` verir.
 
 `wan get` WAN durumunu okur. `wan set --file wan.json` seçilen WAN nesnesine form alanlarını yazar; örnek dosya `{"x.MaxMRUSize":"1492"}`. `--domain` ile bağlantı seçilebilir. Alanların firmware tarafından desteklenmesi gerekir.
+
+## Windows (PowerShell)
+
+.NET 9 SDK ile Windows çıktısı oluşturulur; self-contained EXE çalıştırmak için .NET kurulumu gerekmez:
+
+```powershell
+dotnet publish src/HekzOntRace.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o src/publish/windows
+.\src\publish\windows\huawei.exe info
+$env:HUAWEI_PASSWORD = 'kendi-parolaniz'
+.\src\publish\windows\huawei.exe wifi get --user admin
+.\src\publish\windows\huawei.exe credentials recover --python 'C:\Path\python.exe' --output-dir "$env:USERPROFILE\huawei-backups"
+```
+
+Kurtarma için Windows Python ortamında `python -m pip install paramiko pysmb` gerekir; WSL Python yolu Windows EXE'ye verilmez. stdout ve stderr UTF-8 kullanır. Windows yedekleri klasörün NTFS izinlerini devralır; Linux'taki 0600 izni Windows için geçerli değildir. Yedekleri özel kullanıcı klasöründe saklayın.
+
+Windows testleri aynı paketle çalışır:
+
+```powershell
+$env:HUAWEI_CLI = (Resolve-Path .\src\publish\windows\huawei.exe).Path
+python -m unittest discover -s tests -v
+```
 
 ## Genel okuma/yazma
 
@@ -70,6 +91,6 @@ src/publish/huawei self-test
 python3 -m unittest discover -s tests -v
 ```
 
-Otomatik testler yalnız loopback sahte modem kullanır. Gerçek cihazda varsayılan giriş ve USB/SMB/SFTP kurtarma akışı başarılı oldu. Tüm ayar yazımları, SSH ve fiziksel flash race yöntemi donanımda test edilmedi. Windows CLI derlemesi yapılmamıştır.
+Otomatik testler yalnız loopback sahte modem kullanır. Gerçek cihazda varsayılan giriş ve USB/SMB/SFTP kurtarma akışı başarılı oldu. Tüm ayar yazımları, SSH ve fiziksel flash race yöntemi donanımda test edilmedi. Windows üzerinde 31 entegrasyon testi geçti; symlink testi yetki bulunmadığı için atlandı. Altı dahili kontrol geçti. Windows x64 EXE Windows üzerinde çalıştırıldı; gerçek modem okuması kısmi veri döndürdü. Windows kurtarma bağımlılıkları mevcut, fakat kurtarma/yazma akışı Windows üzerinde cihazda tekrar çalıştırılmadı.
 
 Genişletilmiş paket 32 entegrasyon testi içerir; parametrik alt senaryolar ayrıca çalışır. Kapsam: oturum doğrulama, eksik token, yok sayılan DNS/ALG/TR-069/firewall yazıları, kısmi veriler, geçersiz form JSON'u, seçenek sınırları, DNS/SSID doğrulaması, XML DTD ve belirsiz XPath reddi, parola maskeleme, dosya izinleri ve symlink üzerinden üzerine yazmanın engellenmesi. Altı dahili kontrol kripto roundtrip, HMAC bozulması, parola doğrulama, maskeleme ve komut ayrıştırmayı kapsar. Bu sayılar bütün firmware davranışlarının test edildiği anlamına gelmez.

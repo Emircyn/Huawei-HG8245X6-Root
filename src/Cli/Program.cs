@@ -50,6 +50,7 @@ internal static class Program
 
     public static async Task<int> Main(string[] args)
     {
+        Console.OutputEncoding = new UTF8Encoding(false);
         try
         {
             var (command, o) = Parse(args);

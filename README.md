@@ -27,6 +27,8 @@ dotnet publish src/HekzOntRace.Cli.csproj -c Release -r linux-x64 --self-contain
 ./src/publish/huawei info
 ```
 
+Windows x64 derlemesi ve PowerShell kullanımı için [Windows CLI rehberine](CLI.md#windows-powershell) bakın. Windows çıktısı `huawei.exe` olarak çalışır.
+
 Ek bilgi verilmezse GUI varsayılanları kullanılır: adres `192.168.1.1`, kullanıcı `admin`, parola `superonline`. Farklı bağlantı bilgileri için:
 
 ```sh

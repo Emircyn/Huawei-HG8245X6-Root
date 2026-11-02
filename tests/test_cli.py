@@ -13,7 +13,7 @@ from urllib.parse import parse_qs, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CLI = Path(os.environ.get("HUAWEI_CLI", ROOT / "src/publish/huawei"))
+CLI = Path(os.environ.get("HUAWEI_CLI", ROOT / "src/publish" / ("windows/huawei.exe" if os.name == "nt" else "huawei")))
 
 
 def js(name, fields):
@@ -133,7 +133,7 @@ class CliTest(unittest.TestCase):
         argv = [str(CLI), *args]
         if not offline:
             argv += ["--host", self.host]
-        p = subprocess.run(argv, capture_output=True, text=True, env=environment, timeout=20)
+        p = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", env=environment, timeout=20)
         self.assertEqual(p.returncode, code, p.stdout + p.stderr)
         self.assertNotIn("MockPassword123", p.stdout + p.stderr)
         return json.loads(p.stdout)
@@ -190,7 +190,8 @@ class CliTest(unittest.TestCase):
         path = self.dir / "backup.cfg"
         self.run_cli("backup", "config", "--output", str(path))
         self.assertEqual(path.read_bytes(), FakeOnt.config)
-        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+        if os.name != "nt":
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
         self.run_cli("backup", "config", "--output", str(path), code=4)
         self.assertEqual(path.read_bytes(), FakeOnt.config)
 
@@ -198,7 +199,8 @@ class CliTest(unittest.TestCase):
         path = self.dir / "profile.json"
         self.run_cli("backup", "profile", "--output", str(path))
         self.assertEqual(json.loads(path.read_text())["Wifi"][0]["Psk"], "PrivateWifi123")
-        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+        if os.name != "nt":
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
 
     def test_invalid_restore_never_authenticates_or_uploads(self):
         path = self.dir / "bad.cfg"
@@ -213,7 +215,8 @@ class CliTest(unittest.TestCase):
         self.run_cli("config", "edit", "--file", str(source), "--xpath", "//DeviceInfo", "--attribute", "ModelName", "--value-env", "TEST_NEW", "--output", str(output), offline=True)
         self.assertEqual(source.read_bytes(), FakeOnt.config)
         self.assertIn(b'ModelName="UpdatedValue123"', output.read_bytes())
-        self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
+        if os.name != "nt":
+            self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
 
     def test_config_rejects_dtd(self):
         source = self.dir / "external.xml"
@@ -337,7 +340,12 @@ class CliTest(unittest.TestCase):
         target = self.dir / "original"
         target.write_text("untouched")
         link = self.dir / "link"
-        link.symlink_to(target)
+        try:
+            link.symlink_to(target)
+        except OSError as exc:
+            if os.name == "nt" and exc.winerror == 1314:
+                self.skipTest("Windows symlink privilege is unavailable")
+            raise
         self.run_cli("backup", "config", "--output", str(link), code=4)
         self.assertEqual(target.read_text(), "untouched")
 
