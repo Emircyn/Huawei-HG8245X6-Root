@@ -30,8 +30,11 @@ namespace HekzOntRace.Core;
 
 public sealed class Engine
 {
+    public static string OutputRoot { get; set; }
+
     public static string MasaustuDizini()
     {
+        if (!string.IsNullOrEmpty(OutputRoot)) return OutputRoot;
         string d = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         if (!string.IsNullOrWhiteSpace(d)) return d;
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -229,7 +232,7 @@ public sealed class Engine
 
     public static string RndDigits(int n)
     {
-        return new string(Enumerable.Range(0, n).Select(_ => (char)(48 + Random.Shared.Next(10))).ToArray());
+        return new string(Enumerable.Range(0, n).Select(_ => (char)(48 + RandomNumberGenerator.GetInt32(10))).ToArray());
     }
 
     /// <summary>
@@ -311,6 +314,7 @@ public sealed class Engine
                 try
                 {
                     HuaweiCrypto.Result r2 = HuaweiCrypto.Decrypt(blob);
+                    if (!r2.HmacValid) throw new InvalidDataException("Yapılandırma HMAC doğrulaması başarısız.");
                     if (r2.Plain.Length > 1000)
                     {
                         if (r2.Plain.Length > 2 && r2.Plain[0] == 31 && r2.Plain[1] == 139)
@@ -349,7 +353,7 @@ public sealed class Engine
     /// <summary>
     /// Ortak kurulum (BAŞLAT ve sUser yazma paylaşır):
     /// sağlam web girişi (alternatif kullanıcılarla) + oturum doğrulama + USB algılama +
-    /// eski hesap temizliği + SFTP sunucu/hesap + sağlık kontrolü + SMB sunucu/hesap.
+    /// SFTP sunucu/hesap + sağlık kontrolü + SMB sunucu/hesap.
     /// </summary>
     private async Task SetupAsync()
     {
@@ -425,8 +429,6 @@ public sealed class Engine
             throw new Exception("USB algılanamadı — modeme FAT32/NTFS formatlı bir USB bellek takıp tekrar deneyin.");
         }
         L("[Depolama] USB depolama birimi bağlandı: " + Mount);
-        _phase("Geçici servis hesapları taranıyor...");
-        await DeleteForeignSftpAccountsAsync(web);
         _phase("SFTP dosya servisi başlatılıyor...");
         (_, string sftpSonuc) = await web.PostFormAsync(
             "setajax.cgi?x=InternetGatewayDevice.X_HW_SFTP.X_HW_SFTP_ServerInfo&RequestFile=html/ssmp/usbftp/usbhost.asp",
@@ -502,25 +504,6 @@ public sealed class Engine
         Match m = Regex.Match(OntWeb.Unescape(await web.GetPageAsync("html/ssmp/usbftp/usbhost.asp", _ct)),
             "X_HW_SFTP_ClientInfo\\.(\\d+)\",\"[^\"]*\",\"" + SftpUser + "\"");
         return m.Success ? m.Groups[1].Value : null;
-    }
-
-    private async Task DeleteForeignSftpAccountsAsync(OntWeb web)
-    {
-        MatchCollection matches = Regex.Matches(OntWeb.Unescape(await web.GetPageAsync("html/ssmp/usbftp/usbhost.asp", _ct)),
-            "X_HW_SFTP_ClientInfo\\.(\\d+)\",\"[^\"]*\",\"([^\"]+)\"");
-        int silinen = 0;
-        foreach (Match m in matches)
-        {
-            if (m.Groups[2].Value == SftpUser) continue;
-            string yol = Uri.EscapeDataString("InternetGatewayDevice.X_HW_SFTP.X_HW_SFTP_ClientInfo." + m.Groups[1].Value);
-            await web.PostFormAsync("del.cgi?RequestFile=html/ssmp/usbftp/usbhost.asp",
-                yol + "=&x.X_HW_Token=" + Uri.EscapeDataString(await web.TokenAsync(_ct)),
-                web.Base + "/html/ssmp/usbftp/usbhost.asp", _ct);
-            silinen++;
-            await Task.Delay(1200, _ct);
-        }
-        if (silinen > 0)
-            L($"{silinen} eski geçici SFTP hesabı temizlendi");
     }
 
     private bool SftpProbe()
@@ -1146,7 +1129,7 @@ public sealed class Engine
 
             _phase("Aşama 2/5: Veritabanı çözülüyor ve yedekleniyor...");
             var coz = HuaweiCrypto.Decrypt(orijinal);
-            if (!coz.HmacValid) L("  ! HMAC geçersiz — devam ama riskli");
+            if (!coz.HmacValid) throw new InvalidDataException("Yapılandırma HMAC doğrulaması başarısız — yazılmadı.");
             string xml;
             if (coz.Plain.Length >= 2 && coz.Plain[0] == 0x1f && coz.Plain[1] == 0x8b)
             {

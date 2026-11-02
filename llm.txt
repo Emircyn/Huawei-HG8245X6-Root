@@ -1,0 +1,17 @@
+Huawei HG8245X6 CLI — agent entry point
+
+Read AGENTS.md first: invocation, authentication, read/write workflow, JSON states,
+exit codes, secret handling, firmware limitations and testing instructions.
+Read CLI.md for concrete command examples.
+Run huawei help for the executable's current command and option inventory.
+
+Local executable: /home/emircyn/.local/bin/huawei
+Repository executable: src/publish/huawei
+Implementation: src/Cli/Program.cs and src/Core/
+Tests: python3 -m unittest discover -s tests -v
+Investigation: ../ANALYSIS.md and ../rea-evidence.json
+
+Critical: ok=true + state=submitted is NOT verified success. Exit 5 means
+unverified write or partial data. Read back state before retrying any write.
+Recovery changes services; race mode requires physical intervention.
+Hardware compatibility has not been established by loopback tests.

@@ -15,8 +15,42 @@ Uygulama; hem ileri düzey kullanıcılar ve araştırmacılar için **Standart 
 
 ---
 
+## CLI ve agent kullanımı
+
+Masaüstü uygulamasının Core katmanını kullanan CLI; cihaz bilgisi, Wi-Fi, DNS, WAN, firewall, ALG, TR-069, yedekleme/geri yükleme, parola yönetimi ve genel HTTP/SSH işlemlerini destekler. Ayrıntılar: [CLI.md](CLI.md), agent talimatları: [AGENTS.md](AGENTS.md), kısa giriş: [llm.txt](llm.txt).
+
+.NET 9 SDK ile Linux x64 için derleyin:
+
+```sh
+dotnet publish src/HekzOntRace.Cli.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o src/publish
+./src/publish/huawei help
+./src/publish/huawei info
+```
+
+Ek bilgi verilmezse GUI varsayılanları kullanılır: adres `192.168.1.1`, kullanıcı `admin`, parola `superonline`. Farklı bağlantı bilgileri için:
+
+```sh
+HUAWEI_PASSWORD='kendi-parolaniz' ./src/publish/huawei info --host 192.168.1.1 --user admin
+./src/publish/huawei info --user sUser --password-file /private/router-password
+```
+
+Parola önceliği: `--password-file` → boş olmayan `HUAWEI_PASSWORD` → varsayılan parola. Açıkça verilen boş parola dosyası hata verir. Parolaları komut geçmişine kaydetmemek için korumalı dosya veya önceden tanımlanmış ortam değişkeni kullanın.
+
+GUI'deki **Başlat** işleminin karşılığı aşağıdaki kurtarma komutudur. USB bellek ve `paramiko`, `pysmb` kurulu Python gerekir; SFTP/SMB servislerini değiştirir ve hesap oluşturur. Önceki servis durumunun eksiksiz geri yüklenmesi garanti edilmez.
+
+```sh
+./src/publish/huawei credentials recover --python /path/to/python --output-dir /private/backups > result.json 2> progress.log
+```
+
+stdout JSON sonucu, stderr aşama ve günlükleri içerir. Yazma komutları hemen çalışır. `state=submitted` ve çıkış kodu `5`, işlemin cihazda uygulandığının henüz doğrulanmadığını belirtir; `ok=true` tek başına yeterli değildir. Ayrıntılı komutlar ve güvenli geri okuma akışı için [CLI.md](CLI.md) dosyasını okuyun.
+
+Doğrulama: 32 loopback entegrasyon testi ve 6 dahili kontrol geçti. Gerçek cihazda varsayılan giriş ve USB/SMB/SFTP kurtarma akışı başarılı oldu; tüm ayar yazımları, SSH ve fiziksel race yöntemi donanımda test edilmedi.
+
+---
+
 ## 📌 İçindekiler
 
+- [CLI ve agent kullanımı](#cli-ve-agent-kullanımı)
 - [Desteklenen Modem Modelleri](#-desteklenen-modem-modelleri)
 - [Temel Yetenekler ve Sekmeler](#-temel-yetenekler-ve-sekmeler)
 - [Sürüm ve Platform Karşılaştırması](#️-sürüm-ve-platform-karşılaştırması)
