@@ -599,6 +599,33 @@ public static class ModemInfoWriter
         return (false, $"⚠ {band.Band}: istek gönderildi ama doğrulanamadı (SSID='{ssid}')");
     }
 
+    /// <summary>Bir bandın WPA şifreleme modunu (AESEncryption / TKIPEncryption / TKIPandAESEncryption) yazar.
+    /// TKIP açıkken 802.11n/ax yüksek hız modları devre dışı kaldığından, AES hız için en etkili değişikliktir.
+    /// Doğrulamayı çağıran taraf band bazında geri okuyarak yapar (Encryption index 16).</summary>
+    public static async Task<(bool ok, string msg)> SetWifiEncryptionAsync(OntWeb web, WifiBand band, string encryption, CancellationToken ct)
+    {
+        if (band == null || band.Domain.Length == 0) return (false, "Bant bilgisi yok.");
+        string tok = await web.TokenAsync(ct);
+        if (tok.Length == 0) return (false, "Cihaz token'ı alınamadı (oturum düşmüş olabilir).");
+
+        // WlanBasic.asp'nin WPA/11i şifreleme için kullandığı TR-069 alanları. Üç alanı birden
+        // yazmak farklı firmware sürümlerinde hangisinin dinlendiğini garantiler.
+        string body =
+            "y.X_HW_WPAand11iEncryptionModes=" + encryption +
+            "&y.WPAEncryptionModes=" + encryption +
+            "&y.IEEE11iEncryptionModes=" + encryption +
+            "&x.X_HW_Token=" + Uri.EscapeDataString(tok);
+
+        (int st, _) = await web.PostFormAsync(
+            "set.cgi?y=" + band.Domain + "&RequestFile=" + ModemInfoReader.PWlan,
+            body, web.Base + "/" + ModemInfoReader.PWlan, ct);
+
+        await Task.Delay(2500, ct);
+        return st is 200 or 302
+            ? (true, $"{band.Band}: şifreleme '{encryption}' gönderildi.")
+            : (false, $"{band.Band}: şifreleme gönderilemedi (HTTP {st}).");
+    }
+
     /// <summary>2.4G ve 5G'yi ayrı SSID yapar; 5G'ye _5G eki ekler ve ikisini de görünür yapar.</summary>
     public static async Task<(bool ok, string msg)> EnableDualSsidAsync(OntWeb web, ModemInfo mi, CancellationToken ct)
     {

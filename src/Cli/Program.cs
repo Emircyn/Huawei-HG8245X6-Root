@@ -21,6 +21,7 @@ internal static class Program
         ["info"] = "",
         ["wifi get"] = "",
         ["wifi set"] = "band ssid hidden psk-env",
+        ["wifi security"] = "band encryption",
         ["wifi split"] = "",
         ["dns get"] = "",
         ["dns set"] = "primary secondary side domain",
@@ -242,6 +243,24 @@ internal static class Program
                 r2 = await ModemInfoWriter.SetSsidAsync(web, band, ssid, !Bool(o, "hidden", band.Hidden), psk, ct);
                 // upstream only checks SSID and PSK by substring; visibility and band identity require structured readback.
                 return Submitted(new { response = r2.msg, upstreamCheck = r2.ok }, "Wi-Fi write attempted; verify SSID, PSK, enabled and hidden state for this band.");
+            }
+            case "wifi security":
+            {
+                var band = mi.Bands.SingleOrDefault(x => x.Instance == Required(o, "band")) ?? throw new ArgumentException("Unknown Wi-Fi band instance.");
+                string enc = Required(o, "encryption").ToLowerInvariant() switch
+                {
+                    "aes"  => "AESEncryption",
+                    "tkip" => "TKIPEncryption",
+                    "both" => "TKIPandAESEncryption",
+                    _ => throw new ArgumentException("--encryption must be aes, tkip or both."),
+                };
+                r2 = await ModemInfoWriter.SetWifiEncryptionAsync(web, band, enc, ct);
+                if (!r2.ok) throw new IOException(r2.msg);
+                var after = await ModemInfoReader.FetchAllAsync(web, ct, Log);
+                var ab = after.Bands.FirstOrDefault(x => x.Instance == band.Instance);
+                if (ab == null || !string.Equals(ab.Encryption, enc, StringComparison.OrdinalIgnoreCase))
+                    return Submitted(new { requested = enc, actual = ab?.Encryption }, "Wi-Fi encryption readback did not confirm the requested mode.");
+                break;
             }
             case "wifi split":
                 r2 = await ModemInfoWriter.EnableDualSsidAsync(web, mi, ct);
@@ -545,6 +564,8 @@ internal static class Program
         Redact(redacted);
         Check(!redacted.ToJsonString().Contains("hidden"), "secret redaction");
         Check(Parse(new[] { "dns", "set", "--primary", "1.1.1.1" }).Command == "dns set", "command parser");
-        return Read(new { tests = 6, passed = true });
+        var ws = Parse(new[] { "wifi", "security", "--band", "1", "--encryption", "aes" });
+        Check(ws.Command == "wifi security" && ws.Options["band"] == "1" && ws.Options["encryption"] == "aes", "wifi security parser");
+        return Read(new { tests = 7, passed = true });
     }
 }

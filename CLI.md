@@ -14,6 +14,7 @@ huawei help
 huawei info --host 192.168.1.1 --password-file /private/router-password
 huawei wifi get
 huawei wifi set --band 1 --ssid Ev --hidden false
+huawei wifi security --band 1 --encryption aes
 huawei dns set --primary 1.1.1.1 --secondary 1.0.0.1
 huawei firewall set --level high
 huawei tr069 set --enabled false --periodic false
@@ -23,7 +24,7 @@ huawei restore config --file backup.cfg
 huawei restore profile --file profile.json
 ```
 
-`wifi set --psk-env WIFI_KEY` parolayı belirtilen ortam değişkeninden okur. `wifi split` iki bandı ayırır. `alg set --file alg.json` örneğin `{"SIP":false}` alır; desteklenen anahtarları `alg get` verir.
+`wifi set --psk-env WIFI_KEY` parolayı belirtilen ortam değişkeninden okur. `wifi security --band <instance> --encryption aes|tkip|both` bandın WPA şifreleme modunu ayarlar; **TKIP açıkken 802.11n/ax yüksek hız modları devre dışı kaldığı için `aes` kablosuz hız için en etkili değişikliktir.** Yazdıktan sonra bandı geri okuyup doğrular (`state=verified`). `wifi split` iki bandı ayırır. `alg set --file alg.json` örneğin `{"SIP":false}` alır; desteklenen anahtarları `alg get` verir.
 
 `wan get` WAN durumunu okur. `wan set --file wan.json` seçilen WAN nesnesine form alanlarını yazar; örnek dosya `{"x.MaxMRUSize":"1492"}`. `--domain` ile bağlantı seçilebilir. Alanların firmware tarafından desteklenmesi gerekir.
 
